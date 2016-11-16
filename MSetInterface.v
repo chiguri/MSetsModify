@@ -169,6 +169,7 @@ Module Type WSetsOn (E : DecidableType).
   Parameter cardinal_spec : cardinal s = length (elements s).
   Parameter filter_spec : compatb f ->
     (In x (filter f s) <-> In x s /\ f x = true).
+  Parameter filter_spec' : In x (filter f s) -> In x s.
   Parameter for_all_spec : compatb f ->
     (for_all f s = true <-> For_all (fun x => f x = true) s).
   Parameter exists_spec : compatb f ->
@@ -177,6 +178,8 @@ Module Type WSetsOn (E : DecidableType).
     fst (partition f s) [=] filter f s.
   Parameter partition_spec2 : compatb f ->
     snd (partition f s) [=] filter (fun x => negb (f x)) s.
+  Parameter partition_spec1' : In x (fst (partition f s)) -> In x s.
+  Parameter partition_spec2' : In x (snd (partition f s)) -> In x s.
   Parameter elements_spec1 : InA E.eq x (elements s) <-> In x s.
   (** When compared with ordered sets, here comes the only
       property that is really weaker: *)
@@ -266,8 +269,6 @@ Module Type Sets.
   Declare Module E : OrderedType.
   Include SetsOn E.
 End Sets.
-
-Module Type S := Sets.
 
 
 (** ** Some subtyping tests
@@ -393,7 +394,8 @@ Module Type WRawSets (E : DecidableType).
   Parameter subset_spec : forall `{Ok s, Ok s'},
     subset s s' = true <-> s[<=]s'.
   Parameter empty_spec : Empty empty.
-  Parameter is_empty_spec : is_empty s = true <-> Empty s.
+  Parameter is_empty_spec : forall `{Ok s},
+    is_empty s = true <-> Empty s.
   Parameter add_spec : forall `{Ok s},
     In y (add x s) <-> E.eq y x \/ In y s.
   Parameter remove_spec : forall `{Ok s},
@@ -405,24 +407,31 @@ Module Type WRawSets (E : DecidableType).
     In x (inter s s') <-> In x s /\ In x s'.
   Parameter diff_spec : forall `{Ok s, Ok s'},
     In x (diff s s') <-> In x s /\ ~In x s'.
-  Parameter fold_spec : forall (A : Type) (i : A) (f : elt -> A -> A),
+  Parameter fold_spec : forall `{Ok s} (A : Type) (i : A) (f : elt -> A -> A),
     fold f s i = fold_left (flip f) (elements s) i.
   Parameter cardinal_spec : forall `{Ok s},
     cardinal s = length (elements s).
-  Parameter filter_spec : compatb f ->
+  Parameter filter_spec : forall `{Ok s}, compatb f ->
     (In x (filter f s) <-> In x s /\ f x = true).
-  Parameter for_all_spec : compatb f ->
+  Parameter filter_spec' : forall `{Ok s},
+    In x (filter f s) -> In x s.
+  Parameter for_all_spec : forall `{Ok s}, compatb f ->
     (for_all f s = true <-> For_all (fun x => f x = true) s).
-  Parameter exists_spec : compatb f ->
+  Parameter exists_spec : forall `{Ok s}, compatb f ->
     (exists_ f s = true <-> Exists (fun x => f x = true) s).
-  Parameter partition_spec1 : compatb f ->
+  Parameter partition_spec1 : forall `{Ok s}, compatb f ->
     fst (partition f s) [=] filter f s.
-  Parameter partition_spec2 : compatb f ->
+  Parameter partition_spec2 : forall `{Ok s}, compatb f ->
     snd (partition f s) [=] filter (fun x => negb (f x)) s.
-  Parameter elements_spec1 : InA E.eq x (elements s) <-> In x s.
+  Parameter partition_spec1' : forall `{Ok s},
+    In x (fst (partition f s)) -> In x s.
+  Parameter partition_spec2' : forall `{Ok s},
+    In x (snd (partition f s)) -> In x s.
+  Parameter elements_spec1 : forall `{Ok s},
+    InA E.eq x (elements s) <-> In x s.
   Parameter elements_spec2w : forall `{Ok s}, NoDupA E.eq (elements s).
-  Parameter choose_spec1 : choose s = Some x -> In x s.
-  Parameter choose_spec2 : choose s = None -> Empty s.
+  Parameter choose_spec1 : forall `{Ok s}, choose s = Some x -> In x s.
+  Parameter choose_spec2 : forall `{Ok s}, choose s = None -> Empty s.
 
   End Spec.
 
@@ -502,7 +511,7 @@ Module WRaw2SetsOn (E:DecidableType)(M:WRawSets E) <: WSetsOn E.
   Lemma empty_spec : Empty empty.
   Proof. exact M.empty_spec. Qed.
   Lemma is_empty_spec : is_empty s = true <-> Empty s.
-  Proof. exact (@M.is_empty_spec _). Qed.
+  Proof. exact (@M.is_empty_spec _ _). Qed.
   Lemma add_spec : In y (add x s) <-> E.eq y x \/ In y s.
   Proof. exact (@M.add_spec _ _ _ _). Qed.
   Lemma remove_spec : In y (remove x s) <-> In y s /\ ~E.eq y x.
@@ -517,31 +526,37 @@ Module WRaw2SetsOn (E:DecidableType)(M:WRawSets E) <: WSetsOn E.
   Proof. exact (@M.diff_spec _ _ _ _ _). Qed.
   Lemma fold_spec : forall (A : Type) (i : A) (f : elt -> A -> A),
       fold f s i = fold_left (fun a e => f e a) (elements s) i.
-  Proof. exact (@M.fold_spec _). Qed.
+  Proof. exact (@M.fold_spec _ _). Qed.
   Lemma cardinal_spec : cardinal s = length (elements s).
   Proof. exact (@M.cardinal_spec s _). Qed.
   Lemma filter_spec : compatb f ->
     (In x (filter f s) <-> In x s /\ f x = true).
-  Proof. exact (@M.filter_spec _ _ _). Qed.
+  Proof. exact (@M.filter_spec _ _ _ _). Qed.
+  Lemma filter_spec' : In x (filter f s) -> In x s.
+  Proof. exact (@M.filter_spec' _ _ _ _). Qed.
   Lemma for_all_spec : compatb f ->
     (for_all f s = true <-> For_all (fun x => f x = true) s).
-  Proof. exact (@M.for_all_spec _ _). Qed.
+  Proof. exact (@M.for_all_spec _ _ _). Qed.
   Lemma exists_spec : compatb f ->
     (exists_ f s = true <-> Exists (fun x => f x = true) s).
-  Proof. exact (@M.exists_spec _ _). Qed.
+  Proof. exact (@M.exists_spec _ _ _). Qed.
   Lemma partition_spec1 : compatb f -> Equal (fst (partition f s)) (filter f s).
-  Proof. exact (@M.partition_spec1 _ _). Qed.
+  Proof. exact (@M.partition_spec1 _ _ _). Qed.
   Lemma partition_spec2 : compatb f ->
       Equal (snd (partition f s)) (filter (fun x => negb (f x)) s).
-  Proof. exact (@M.partition_spec2 _ _). Qed.
+  Proof. exact (@M.partition_spec2 _ _ _). Qed.
+  Lemma partition_spec1' : In x (fst (partition f s)) -> In x s.
+  Proof. exact (@M.partition_spec1' _ _ _ _). Qed.
+  Lemma partition_spec2' : In x (snd (partition f s)) -> In x s.
+  Proof. exact (@M.partition_spec2' _ _ _ _). Qed.
   Lemma elements_spec1 : InA E.eq x (elements s) <-> In x s.
-  Proof. exact (@M.elements_spec1 _ _). Qed.
+  Proof. exact (@M.elements_spec1 _ _ _). Qed.
   Lemma elements_spec2w : NoDupA E.eq (elements s).
   Proof. exact (@M.elements_spec2w _ _). Qed.
   Lemma choose_spec1 : choose s = Some x -> In x s.
-  Proof. exact (@M.choose_spec1 _ _). Qed.
+  Proof. exact (@M.choose_spec1 _ _ _). Qed.
   Lemma choose_spec2 : choose s = None -> Empty s.
-  Proof. exact (@M.choose_spec2 _). Qed.
+  Proof. exact (@M.choose_spec2 _ _). Qed.
 
  End Spec.
 
@@ -568,14 +583,14 @@ Module Type RawSets (E : OrderedType).
   Parameter elements_spec2 : forall `{Ok s}, sort E.lt (elements s).
 
   (** Specification of [min_elt] *)
-  Parameter min_elt_spec1 : min_elt s = Some x -> In x s.
+  Parameter min_elt_spec1 : forall `{Ok s}, min_elt s = Some x -> In x s.
   Parameter min_elt_spec2 : forall `{Ok s}, min_elt s = Some x -> In y s -> ~ E.lt y x.
-  Parameter min_elt_spec3 : min_elt s = None -> Empty s.
+  Parameter min_elt_spec3 : forall `{Ok s}, min_elt s = None -> Empty s.
 
   (** Specification of [max_elt] *)
-  Parameter max_elt_spec1 : max_elt s = Some x -> In x s.
+  Parameter max_elt_spec1 : forall `{Ok s}, max_elt s = Some x -> In x s.
   Parameter max_elt_spec2 : forall `{Ok s}, max_elt s = Some x -> In y s -> ~ E.lt x y.
-  Parameter max_elt_spec3 : max_elt s = None -> Empty s.
+  Parameter max_elt_spec3 : forall `{Ok s}, max_elt s = None -> Empty s.
 
   (** Additional specification of [choose] *)
   Parameter choose_spec3 : forall `{Ok s, Ok s'},
@@ -624,19 +639,19 @@ Module Raw2SetsOn (O:OrderedType)(M:RawSets O) <: SetsOn O.
 
   (** Specification of [min_elt] *)
   Lemma min_elt_spec1 : min_elt s = Some x -> In x s.
-  Proof. exact (@M.min_elt_spec1 _ _). Qed.
+  Proof. exact (@M.min_elt_spec1 _ _ _). Qed.
   Lemma min_elt_spec2 : min_elt s = Some x -> In y s -> ~ O.lt y x.
   Proof. exact (@M.min_elt_spec2 _ _ _ _). Qed.
   Lemma min_elt_spec3 : min_elt s = None -> Empty s.
-  Proof. exact (@M.min_elt_spec3 _). Qed.
+  Proof. exact (@M.min_elt_spec3 _ _). Qed.
 
   (** Specification of [max_elt] *)
   Lemma max_elt_spec1 : max_elt s = Some x -> In x s.
-  Proof. exact (@M.max_elt_spec1 _ _). Qed.
+  Proof. exact (@M.max_elt_spec1 _ _ _). Qed.
   Lemma max_elt_spec2 : max_elt s = Some x -> In y s -> ~ O.lt x y.
   Proof. exact (@M.max_elt_spec2 _ _ _ _). Qed.
   Lemma max_elt_spec3 : max_elt s = None -> Empty s.
-  Proof. exact (@M.max_elt_spec3 _). Qed.
+  Proof. exact (@M.max_elt_spec3 _ _). Qed.
 
   (** Additional specification of [choose] *)
   Lemma choose_spec3 :

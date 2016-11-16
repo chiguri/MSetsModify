@@ -252,15 +252,15 @@ Module MakeRaw (X:DecidableType) <: WRawSets X.
   unfold Empty, empty; red; intros; inv.
   Qed.
 
-  Lemma is_empty_spec : forall s : t, is_empty s = true <-> Empty s.
+  Lemma is_empty_spec : forall (s : t) `{Ok s}, is_empty s = true <-> Empty s.
   Proof.
-  unfold Empty; destruct s; simpl; split; intros; auto.
+  unfold Empty; destruct s; simpl; intro Hs; split; intros; auto.
   intro; inv.
   discriminate.
   elim (H e); auto.
   Qed.
 
-  Lemma elements_spec1 : forall (s : t) (x : elt), In x (elements s) <-> In x s.
+  Lemma elements_spec1 : forall (s : t) (x : elt) `{Ok s}, In x (elements s) <-> In x s.
   Proof.
   unfold elements; intuition.
   Qed.
@@ -271,7 +271,7 @@ Module MakeRaw (X:DecidableType) <: WRawSets X.
   Qed.
 
   Lemma fold_spec :
-   forall (s : t) (A : Type) (i : A) (f : elt -> A -> A),
+   forall (s : t) `{Ok s} (A : Type) (i : A) (f : elt -> A -> A),
    fold f s i = fold_left (flip f) (elements s) i.
   Proof.
   reflexivity.
@@ -364,14 +364,14 @@ Module MakeRaw (X:DecidableType) <: WRawSets X.
   Qed.
 
   Definition choose_spec1 :
-    forall (s : t) (x : elt), choose s = Some x -> In x s.
+    forall (s : t) (x : elt) `{Ok s}, choose s = Some x -> In x s.
   Proof.
-  destruct s; simpl; intros; inversion H; auto.
+  intros s x _; destruct s; simpl; intros; inversion H; auto.
   Qed.
 
-  Definition choose_spec2 : forall s : t, choose s = None -> Empty s.
+  Definition choose_spec2 : forall (s : t) `{Ok s}, choose s = None -> Empty s.
   Proof.
-  destruct s; simpl; intros.
+  destruct s; simpl; intros _ H.
   intros x H0; inversion H0.
   inversion H.
   Qed.
@@ -382,7 +382,7 @@ Module MakeRaw (X:DecidableType) <: WRawSets X.
   auto.
   Qed.
 
-  Lemma filter_spec' : forall s x f,
+  Lemma filter_spec' : forall s x f `{Ok s},
    In x (filter f s) -> In x s.
   Proof.
   induction s; simpl.
@@ -391,11 +391,11 @@ Module MakeRaw (X:DecidableType) <: WRawSets X.
   Qed.
 
   Lemma filter_spec :
-   forall (s : t) (x : elt) (f : elt -> bool),
+   forall (s : t) (x : elt) (f : elt -> bool) `{Ok s},
    Proper (X.eq==>eq) f ->
    (In x (filter f s) <-> In x s /\ f x = true).
   Proof.
-  induction s; simpl.
+  intros s x f _; induction s; simpl.
   intuition; inv.
   intros.
   destruct (f a) eqn:E; rewrite ?InA_cons, IHs; intuition.
@@ -415,11 +415,11 @@ Module MakeRaw (X:DecidableType) <: WRawSets X.
   Qed.
 
   Lemma for_all_spec :
-   forall (s : t) (f : elt -> bool),
+   forall (s : t) (f : elt -> bool) `{Ok s},
    Proper (X.eq==>eq) f ->
    (for_all f s = true <-> For_all (fun x => f x = true) s).
   Proof.
-  unfold For_all; induction s; simpl.
+  unfold For_all; intros s f _; induction s; simpl.
   intuition. inv.
   intros; inv.
   destruct (f a) eqn:F.
@@ -431,11 +431,11 @@ Module MakeRaw (X:DecidableType) <: WRawSets X.
   Qed.
 
   Lemma exists_spec :
-   forall (s : t) (f : elt -> bool),
+   forall (s : t) (f : elt -> bool) `{Ok s},
    Proper (X.eq==>eq) f ->
    (exists_ f s = true <-> Exists (fun x => f x = true) s).
   Proof.
-  unfold Exists; induction s; simpl.
+  unfold Exists; intros s f _; induction s; simpl.
   split; [discriminate| intros (x & Hx & _); inv].
   intros.
   destruct (f a) eqn:F.
@@ -447,7 +447,7 @@ Module MakeRaw (X:DecidableType) <: WRawSets X.
   exists x; auto.
   Qed.
 
-  Lemma partition_spec1 :
+  Lemma partition_spec1_w :
    forall (s : t) (f : elt -> bool),
    Proper (X.eq==>eq) f ->
    Equal (fst (partition f s)) (filter f s).
@@ -460,7 +460,27 @@ Module MakeRaw (X:DecidableType) <: WRawSets X.
   case (f x); simpl; firstorder; inversion H0; intros; firstorder.
   Qed.
 
-  Lemma partition_spec2 :
+  Lemma partition_spec1 :
+   forall (s : t) (f : elt -> bool) `{Ok s},
+   Proper (X.eq==>eq) f ->
+   Equal (fst (partition f s)) (filter f s).
+  Proof.
+  intros s f _; exact (@partition_spec1_w _ _).
+  Qed.
+
+  Lemma partition_spec1' :
+   forall (s : t) (x : elt) (f : elt -> bool) `{Ok s},
+   In x (fst (partition f s)) -> In x s.
+  Proof.
+  intros s x f _; induction s; simpl; intro H.
+  now auto.
+  destruct (partition f s); simpl in *.
+  destruct (f a); simpl in H.
+  inversion_clear H; now auto.
+  now auto.
+  Qed.
+
+  Lemma partition_spec2_w :
    forall (s : t) (f : elt -> bool),
    Proper (X.eq==>eq) f ->
    Equal (snd (partition f s)) (filter (fun x => negb (f x)) s).
@@ -471,6 +491,26 @@ Module MakeRaw (X:DecidableType) <: WRawSets X.
   generalize (Hrec f Hf); clear Hrec.
   case (partition f l); intros s1 s2; simpl; intros.
   case (f x); simpl; firstorder; inversion H0; intros; firstorder.
+  Qed.
+
+  Lemma partition_spec2 :
+   forall (s : t) (f : elt -> bool) `{Ok s},
+   Proper (X.eq==>eq) f ->
+   Equal (snd (partition f s)) (filter (fun x => negb (f x)) s).
+  Proof.
+  intros s f _; exact (@partition_spec2_w _ _).
+  Qed.
+
+  Lemma partition_spec2' :
+   forall (s : t) (x : elt) (f : elt -> bool) `{Ok s},
+   In x (snd (partition f s)) -> In x s.
+  Proof.
+  intros s x f _; induction s; simpl; intro H.
+  now auto.
+  destruct (partition f s); simpl in *.
+  destruct (f a); simpl in H.
+  auto.
+  inversion_clear H; auto.
   Qed.
 
   Lemma partition_ok1' :

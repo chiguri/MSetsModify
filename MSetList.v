@@ -528,14 +528,14 @@ Module MakeRaw (X: OrderedType) <: RawSets X.
   unfold Empty, empty; intuition; inv.
   Qed.
 
-  Lemma is_empty_spec : forall s : t, is_empty s = true <-> Empty s.
+  Lemma is_empty_spec : forall (s : t) (Hs : Ok s), is_empty s = true <-> Empty s.
   Proof.
-  intros [ | x s]; simpl.
+  intros [ | x s] _; simpl.
   split; auto. intros _ x H. inv.
   split. discriminate. intros H. elim (H x); auto.
   Qed.
 
-  Lemma elements_spec1 : forall (s : t) (x : elt), In x (elements s) <-> In x s.
+  Lemma elements_spec1 : forall (s : t) (x : elt) (Hs : Ok s), In x (elements s) <-> In x s.
   Proof.
   intuition.
   Qed.
@@ -550,9 +550,9 @@ Module MakeRaw (X: OrderedType) <: RawSets X.
   intro s; repeat rewrite <- isok_iff; auto.
   Qed.
 
-  Lemma min_elt_spec1 : forall (s : t) (x : elt), min_elt s = Some x -> In x s.
+  Lemma min_elt_spec1 : forall (s : t) (x : elt) (Hs : Ok s), min_elt s = Some x -> In x s.
   Proof.
-  destruct s; simpl; inversion 1; auto.
+  destruct s; simpl; inversion 2; auto.
   Qed.
 
   Lemma min_elt_spec2 :
@@ -563,14 +563,14 @@ Module MakeRaw (X: OrderedType) <: RawSets X.
   intros; inv; try sort_inf_in; order.
   Qed.
 
-  Lemma min_elt_spec3 : forall s : t, min_elt s = None -> Empty s.
+  Lemma min_elt_spec3 : forall (s : t) (Hs : Ok s), min_elt s = None -> Empty s.
   Proof.
   destruct s; simpl; red; intuition. inv. discriminate.
   Qed.
 
-  Lemma max_elt_spec1 : forall (s : t) (x : elt), max_elt s = Some x -> In x s.
+  Lemma max_elt_spec1 : forall (s : t) (x : elt) (Hs : Ok s), max_elt s = Some x -> In x s.
   Proof.
-  induction s as [ | x s IH]. inversion 1.
+  intros s x _. revert x. induction s as [ | x s IH]. inversion 1.
   destruct s as [ | y s]. simpl. inversion 1; subst; auto.
   right; apply IH; auto.
   Qed.
@@ -587,18 +587,18 @@ Module MakeRaw (X: OrderedType) <: RawSets X.
   order.
   Qed.
 
-  Lemma max_elt_spec3 : forall s : t, max_elt s = None -> Empty s.
+  Lemma max_elt_spec3 : forall (s : t) (Hs : Ok s), max_elt s = None -> Empty s.
   Proof.
-  induction s as [ | a s IH]. red; intuition; inv.
+  intros s _. induction s as [ | a s IH]. red; intuition; inv.
   destruct s as [ | b s]. inversion 1.
   intros; elim IH with b; auto.
   Qed.
 
   Definition choose_spec1 :
-    forall (s : t) (x : elt), choose s = Some x -> In x s := min_elt_spec1.
+    forall (s : t) (x : elt) (Hs : Ok s), choose s = Some x -> In x s := min_elt_spec1.
 
   Definition choose_spec2 :
-    forall s : t, choose s = None -> Empty s := min_elt_spec3.
+    forall (s : t) (Hs : Ok s), choose s = None -> Empty s := min_elt_spec3.
 
   Lemma choose_spec3: forall s s' x x', Ok s -> Ok s' ->
    choose s = Some x -> choose s' = Some x' -> Equal s s' -> X.eq x x'.
@@ -614,7 +614,7 @@ Module MakeRaw (X: OrderedType) <: RawSets X.
   Qed.
 
   Lemma fold_spec :
-   forall (s : t) (A : Type) (i : A) (f : elt -> A -> A),
+   forall (s : t) (Hs : Ok s) (A : Type) (i : A) (f : elt -> A -> A),
    fold f s i = fold_left (flip f) (elements s) i.
   Proof.
   reflexivity.
@@ -651,23 +651,33 @@ Module MakeRaw (X: OrderedType) <: RawSets X.
   Qed.
 
   Lemma filter_spec :
-   forall (s : t) (x : elt) (f : elt -> bool),
+   forall (s : t) (x : elt) (f : elt -> bool) (Hs : Ok s),
    Proper (X.eq==>eq) f ->
    (In x (filter f s) <-> In x s /\ f x = true).
   Proof.
-  induction s; simpl; intros.
+  intros s x f _; induction s; simpl; intros.
   split; intuition; inv.
   destruct (f a) eqn:F; rewrite !InA_cons, ?IHs; intuition.
   setoid_replace x with a; auto.
   setoid_replace a with x in F; auto; congruence.
   Qed.
 
+  Lemma filter_spec' :
+   forall (s : t) (x : elt) (f : elt -> bool) (Hs : Ok s),
+   In x (filter f s) -> In x s.
+  Proof.
+  intros s x f _; induction s; simpl; intro H.
+  now intuition.
+  destruct (f a); auto.
+  inversion_clear H; auto.
+  Qed.
+
   Lemma for_all_spec :
-   forall (s : t) (f : elt -> bool),
+   forall (s : t) (f : elt -> bool) (Hs : Ok s),
    Proper (X.eq==>eq) f ->
    (for_all f s = true <-> For_all (fun x => f x = true) s).
   Proof.
-  unfold For_all; induction s; simpl; intros.
+  intros s f _; unfold For_all; induction s; simpl; intros.
   split; intros; auto. inv.
   destruct (f a) eqn:F.
   rewrite IHs; auto. firstorder. inv; auto.
@@ -677,11 +687,11 @@ Module MakeRaw (X: OrderedType) <: RawSets X.
   Qed.
 
   Lemma exists_spec :
-   forall (s : t) (f : elt -> bool),
+   forall (s : t) (f : elt -> bool) (Hs : Ok s),
    Proper (X.eq==>eq) f ->
    (exists_ f s = true <-> Exists (fun x => f x = true) s).
   Proof.
-  unfold Exists; induction s; simpl; intros.
+  intros s f _; unfold Exists; induction s; simpl; intros.
   firstorder. discriminate. inv.
   destruct (f a) eqn:F.
   firstorder.
@@ -741,13 +751,13 @@ Module MakeRaw (X: OrderedType) <: RawSets X.
   Qed.
 
   Lemma partition_spec1 :
-   forall (s : t) (f : elt -> bool),
+   forall (s : t) (f : elt -> bool) (Hs : Ok s),
    Proper (X.eq==>eq) f -> Equal (fst (partition f s)) (filter f s).
   Proof.
-  simple induction s; simpl; auto; unfold Equal.
+  intros s f _; revert s; simple induction s; simpl; auto; unfold Equal.
   split; auto.
-  intros x l Hrec f Hf.
-  generalize (Hrec f Hf); clear Hrec.
+  intros x l Hrec Hf.
+  generalize (Hrec Hf); clear Hrec.
   destruct (partition f l) as [s1 s2]; simpl; intros.
   case (f x); simpl; auto.
   split; inversion_clear 1; auto.
@@ -755,20 +765,42 @@ Module MakeRaw (X: OrderedType) <: RawSets X.
   constructor 2; rewrite H; auto.
   Qed.
 
+  Lemma partition_spec1' :
+   forall (s : t) (x : elt) (f : elt -> bool) (Hs : Ok s),
+   In x (fst (partition f s)) -> In x s.
+  Proof.
+  intros s x f _; induction s; simpl; intro H.
+  now intuition.
+  destruct (partition f s); simpl in *.
+  destruct (f a); auto.
+  inversion_clear H; auto.
+  Qed.
+
   Lemma partition_spec2 :
-   forall (s : t) (f : elt -> bool),
+   forall (s : t) (f : elt -> bool) (Hs : Ok s),
    Proper (X.eq==>eq) f ->
    Equal (snd (partition f s)) (filter (fun x => negb (f x)) s).
   Proof.
-  simple induction s; simpl; auto; unfold Equal.
+  intros s f _; revert s; simple induction s; simpl; auto; unfold Equal.
   split; auto.
-  intros x l Hrec f Hf.
-  generalize (Hrec f Hf); clear Hrec.
+  intros x l Hrec Hf.
+  generalize (Hrec Hf); clear Hrec.
   destruct (partition f l) as [s1 s2]; simpl; intros.
   case (f x); simpl; auto.
   split; inversion_clear 1; auto.
   constructor 2; rewrite <- H; auto.
   constructor 2; rewrite H; auto.
+  Qed.
+
+  Lemma partition_spec2' :
+   forall (s : t) (x : elt) (f : elt -> bool) (Hs : Ok s),
+   In x (snd (partition f s)) -> In x s.
+  Proof.
+  intros s x f _; induction s; simpl; intro H.
+  now intuition.
+  destruct (partition f s); simpl in *.
+  destruct (f a); auto.
+  inversion_clear H; auto.
   Qed.
 
   End ForNotations.
@@ -840,7 +872,7 @@ End MakeRaw.
    Now, in order to really provide a functor implementing [S], we
    need to encapsulate everything into a type of strictly ordered lists. *)
 
-Module Make (X: OrderedType) <: S with Module E := X.
+Module Make (X: OrderedType) <: Sets with Module E := X.
  Module Raw := MakeRaw X.
  Include Raw2Sets X Raw.
 End Make.

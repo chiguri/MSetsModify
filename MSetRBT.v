@@ -40,7 +40,7 @@ Local Unset Elimination Schemes.
 
 (** An extra function not (yet?) in MSetInterface.S *)
 
-Module Type MSetRemoveMin (Import M:MSetInterface.S).
+Module Type MSetRemoveMin (Import M:MSetInterface.Sets).
 
  Parameter remove_min : t -> option (elt * t).
 
@@ -1034,7 +1034,7 @@ Proof.
    apply Nat.succ_add_discr.
 Qed.
 
-Lemma treeify_spec x l : InT x (treeify l) <-> InA X.eq x l.
+Lemma treeify_spec x l (Hs : Ok (treeify l)) : InT x (treeify l) <-> InA X.eq x l.
 Proof.
  intros. now rewrite <- elements_spec1, treeify_elements.
 Qed.
@@ -1071,20 +1071,31 @@ Proof.
  now rewrite treeify_elements, filter_aux_elements, app_nil_r.
 Qed.
 
-Lemma filter_spec s x f :
- Proper (X.eq==>Logic.eq) f ->
- (InT x (filter f s) <-> InT x s /\ f x = true).
-Proof.
- intros Hf.
- rewrite <- elements_spec1, filter_elements, filter_InA, elements_spec1;
-  now auto_tc.
-Qed.
-
 Instance filter_ok s f `(Ok s) : Ok (filter f s).
 Proof.
  apply elements_sort_ok.
  rewrite filter_elements.
  apply filter_sort with X.eq; auto_tc.
+Qed.
+
+Lemma filter_spec s x f (Hs : Ok s) :
+ Proper (X.eq==>Logic.eq) f ->
+ (InT x (filter f s) <-> InT x s /\ f x = true).
+Proof.
+ intros Hf.
+ rewrite <- elements_spec1, filter_elements, filter_InA, elements_spec1;
+  auto_tc.
+ split; auto.
+Qed.
+
+Lemma filter_spec' s x f (Hs : Ok s) :
+ InT x (filter f s) -> InT x s.
+Proof.
+ rewrite <- (elements_spec1_w s).
+ rewrite <- elements_spec1, filter_elements; auto_tc.
+ induction (elements s); simpl; auto.
+ destruct (f a); intuition.
+ inversion_clear H; intuition.
 Qed.
 
 (** ** Partition *)
@@ -1106,15 +1117,23 @@ Proof.
  unfold partition, filter. now rewrite partition_aux_spec.
 Qed.
 
-Lemma partition_spec1 s f :
+Lemma partition_spec1 s f `(Ok s) :
  Proper (X.eq==>Logic.eq) f ->
  Equal (fst (partition f s)) (filter f s).
 Proof. now rewrite partition_spec. Qed.
 
-Lemma partition_spec2 s f :
+Lemma partition_spec1' s x f `(Ok s) :
+ InT x (fst (partition f s)) -> InT x s.
+Proof. rewrite partition_spec. simpl. now apply filter_spec'. Qed.
+
+Lemma partition_spec2 s f `(Ok s) :
  Proper (X.eq==>Logic.eq) f ->
  Equal (snd (partition f s)) (filter (fun x => negb (f x)) s).
 Proof. now rewrite partition_spec. Qed.
+
+Lemma partition_spec2' s x f `(Ok s) :
+ InT x (snd (partition f s)) -> InT x s.
+Proof. rewrite partition_spec. simpl. now apply filter_spec'. Qed.
 
 Instance partition_ok1 s f `(Ok s) : Ok (fst (partition f s)).
 Proof. rewrite partition_spec; now apply filter_ok. Qed.
@@ -1225,7 +1244,7 @@ Qed.
 Instance fold_add_ok s1 s2 `(Ok s1, Ok s2) :
  Ok (fold add s1 s2).
 Proof.
- rewrite fold_spec, <- fold_left_rev_right.
+ rewrite fold_spec_w, <- fold_left_rev_right.
  unfold elt in *.
  induction (rev (elements s1)); simpl; unfold flip in *; auto_tc.
 Qed.
@@ -1250,19 +1269,20 @@ Proof.
      + rewrite IH1, !InA_cons; tauto.
 Qed.
 
-Lemma linear_union_spec s1 s2 x :
+Lemma linear_union_spec s1 s2 x (Hs1 : Ok s1) (Hs2 : Ok s2) :
  InT x (linear_union s1 s2) <-> InT x s1 \/ InT x s2.
 Proof.
  unfold linear_union.
  rewrite treeify_spec, union_list_spec, !rev_elements_rev.
- rewrite !InA_rev, InA_nil, !elements_spec1 by auto_tc.
+ rewrite !InA_rev, InA_nil, !elements_spec1_w by auto_tc.
  tauto.
+ apply linear_union_ok; auto.
 Qed.
 
-Lemma fold_add_spec s1 s2 x :
+Lemma fold_add_spec s1 s2 x (Hs1 : Ok s1) (Hs2 : Ok s2) :
  InT x (fold add s1 s2) <-> InT x s1 \/ InT x s2.
 Proof.
- rewrite fold_spec, <- fold_left_rev_right.
+ rewrite fold_spec_w, <- fold_left_rev_right.
  rewrite <- (elements_spec1 s1), <- InA_rev by auto_tc.
  unfold elt in *.
  induction (rev (elements s1)); simpl.
@@ -1270,19 +1290,19 @@ Proof.
  - unfold flip. rewrite add_spec', IHl, InA_cons. tauto.
 Qed.
 
-Lemma union_spec' s1 s2 x :
+Lemma union_spec' s1 s2 x (Hs1 : Ok s1) (Hs2 : Ok s2) :
  InT x (union s1 s2) <-> InT x s1 \/ InT x s2.
 Proof.
  unfold union. destruct compare_height.
- - apply linear_union_spec.
- - apply fold_add_spec.
- - rewrite fold_add_spec. tauto.
+ - apply linear_union_spec; auto.
+ - apply fold_add_spec; auto.
+ - rewrite fold_add_spec; auto. tauto.
 Qed.
 
 Lemma union_spec : forall s1 s2 y `{Ok s1, Ok s2},
  (InT y (union s1 s2) <-> InT y s1 \/ InT y s2).
 Proof.
- intros; apply union_spec'.
+ apply union_spec'.
 Qed.
 
 (** ** inter *)
@@ -1338,9 +1358,13 @@ Lemma linear_inter_spec s1 s2 x `(Ok s1, Ok s2) :
  InT x (linear_inter s1 s2) <-> InT x s1 /\ InT x s2.
 Proof.
  unfold linear_inter.
- rewrite !rev_elements_rev, treeify_spec, inter_list_spec
-  by (rewrite rev_involutive; auto_tc).
- rewrite !InA_rev, InA_nil, !elements_spec1 by auto_tc. tauto.
+ rewrite !rev_elements_rev, treeify_spec, inter_list_spec.
+ - rewrite !InA_rev, InA_nil, !elements_spec1 by auto_tc. tauto.
+ - rewrite rev_involutive; auto_tc.
+ - rewrite rev_involutive; auto_tc.
+ - apply treeify_ok. apply inter_list_ok.
+   repeat rewrite <- rev_elements_rev.
+   apply INV_init; auto.
 Qed.
 
 Local Instance mem_proper s `(Ok s) :
@@ -1382,10 +1406,10 @@ Proof.
  unfold linear_inter. now apply treeify_ok, diff_list_ok, INV_init.
 Qed.
 
-Instance fold_remove_ok s1 s2 `(Ok s2) :
+Instance fold_remove_ok s1 s2 `(Ok s1) `(Ok s2) :
  Ok (fold remove s1 s2).
 Proof.
- rewrite fold_spec, <- fold_left_rev_right.
+ rewrite fold_spec_w, <- fold_left_rev_right.
  unfold elt in *.
  induction (rev (elements s1)); simpl; unfold flip in *; auto_tc.
 Qed.
@@ -1423,15 +1447,19 @@ Lemma linear_diff_spec s1 s2 x `(Ok s1, Ok s2) :
  InT x (linear_diff s1 s2) <-> InT x s1 /\ ~InT x s2.
 Proof.
  unfold linear_diff.
- rewrite !rev_elements_rev, treeify_spec, diff_list_spec
-  by (rewrite rev_involutive; auto_tc).
- rewrite !InA_rev, InA_nil, !elements_spec1 by auto_tc. tauto.
+ rewrite !rev_elements_rev, treeify_spec, diff_list_spec.
+ - rewrite !InA_rev, InA_nil, !elements_spec1 by auto_tc. tauto.
+ - rewrite rev_involutive; auto_tc.
+ - rewrite rev_involutive; auto_tc.
+ - apply treeify_ok. apply diff_list_ok.
+   repeat rewrite <- rev_elements_rev.
+   apply INV_init; auto.
 Qed.
 
-Lemma fold_remove_spec s1 s2 x `(Ok s2) :
+Lemma fold_remove_spec s1 s2 x `(Ok s1) `(Ok s2) :
   InT x (fold remove s1 s2) <-> InT x s2 /\ ~InT x s1.
 Proof.
- rewrite fold_spec, <- fold_left_rev_right.
+ rewrite fold_spec_w, <- fold_left_rev_right.
  rewrite <- (elements_spec1 s1), <- InA_rev by auto_tc.
  unfold elt in *.
  induction (rev (elements s1)); simpl; intros.
@@ -1883,13 +1911,13 @@ Qed.
 
 Instance fold_add_rb s1 s2 : Rbt s2 -> Rbt (fold add s1 s2).
 Proof.
- intros. rewrite fold_spec, <- fold_left_rev_right. unfold elt in *.
+ intros. rewrite fold_spec_w, <- fold_left_rev_right. unfold elt in *.
  induction (rev (elements s1)); simpl; unfold flip in *; auto_tc.
 Qed.
 
 Instance fold_remove_rb s1 s2 : Rbt s2 -> Rbt (fold remove s1 s2).
 Proof.
- intros. rewrite fold_spec, <- fold_left_rev_right. unfold elt in *.
+ intros. rewrite fold_spec_w, <- fold_left_rev_right. unfold elt in *.
  induction (rev (elements s1)); simpl; unfold flip in *; auto_tc.
 Qed.
 
@@ -1919,7 +1947,7 @@ End BalanceProps.
    see [BalanceProps] if you need more than just the MSet interface.
 *)
 
-Module Type MSetInterface_S_Ext := MSetInterface.S <+ MSetRemoveMin.
+Module Type MSetInterface_S_Ext := MSetInterface.Sets <+ MSetRemoveMin.
 
 Module Make (X: Orders.OrderedType) <:
  MSetInterface_S_Ext with Module E := X.
