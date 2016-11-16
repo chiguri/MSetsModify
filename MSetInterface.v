@@ -345,6 +345,9 @@ Module Type WRawSets (E : DecidableType).
       predicate [Ok]. If [Ok] isn't decidable, [isok] may be the
       always-false function. *)
   Parameter isok : t -> bool.
+  (** MS: 
+    Dangerous instance, the [isok s = true] hypothesis cannot be discharged
+   with typeclass resolution. Is it really an instance? *)
   Declare Instance isok_Ok s `(isok s = true) : Ok s | 10.
 
   (** Logical predicates *)
@@ -431,7 +434,6 @@ Module WRaw2SetsOn (E:DecidableType)(M:WRawSets E) <: WSetsOn E.
 
  (** We avoid creating induction principles for the Record *)
  Local Unset Elimination Schemes.
- Local Unset Case Analysis Schemes.
 
  Definition elt := E.t.
 

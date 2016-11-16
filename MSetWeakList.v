@@ -56,8 +56,8 @@ Module Ops (X: DecidableType) <: WOps X.
         if X.eq_dec x y then l else y :: remove x l
     end.
 
-  Definition fold (B : Type) (f : elt -> B -> B) (s : t) (i : B) : B :=
-    fold_left (flip f) s i.
+  Definition fold (B : Type) (f : elt -> B -> B) : t -> B -> B :=
+    fold_left (flip f).
 
   Definition union (s : t) : t -> t := fold add s.
 
@@ -118,16 +118,18 @@ Module MakeRaw (X:DecidableType) <: WRawSets X.
   Notation In := (InA X.eq).
 
   (* TODO: modify proofs in order to avoid these hints *)
-  Hint Resolve (@Equivalence_Reflexive _ _ X.eq_equiv).
-  Hint Immediate (@Equivalence_Symmetric _ _ X.eq_equiv).
-  Hint Resolve (@Equivalence_Transitive _ _ X.eq_equiv).
+  Let eqr:= (@Equivalence_Reflexive _ _ X.eq_equiv).
+  Let eqsym:= (@Equivalence_Symmetric _ _ X.eq_equiv).
+  Let eqtrans:= (@Equivalence_Transitive _ _ X.eq_equiv).
+  Hint Resolve eqr eqtrans.
+  Hint Immediate eqsym.
 
   Definition IsOk := NoDup.
 
   Class Ok (s:t) : Prop := ok : NoDup s.
 
   Hint Unfold Ok.
-  Hint Resolve @ok.
+  Hint Resolve ok.
 
   Instance NoDup_Ok s (nd : NoDup s) : Ok s := { ok := nd }.
 
@@ -215,10 +217,10 @@ Module MakeRaw (X:DecidableType) <: WRawSets X.
   Proof.
   induction s; simpl; intros.
   intuition; inv; auto.
-  destruct X.eq_dec; inv; rewrite !InA_cons, ?IHs; intuition.
+  destruct X.eq_dec as [|Hnot]; inv; rewrite !InA_cons, ?IHs; intuition.
   elim H. setoid_replace a with y; eauto.
   elim H3. setoid_replace x with y; eauto.
-  elim n. eauto.
+  elim Hnot. eauto.
   Qed.
 
   Global Instance remove_ok s x `(Ok s) : Ok (remove x s).

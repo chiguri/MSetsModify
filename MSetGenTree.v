@@ -27,14 +27,13 @@
      - min_elt max_elt choose
 *)
 
-Require Import Orders OrdersFacts MSetInterface NPeano.
+Require Import Orders OrdersFacts MSetInterface PeanoNat.
 Local Open Scope list_scope.
 Local Open Scope lazy_bool_scope.
 
 (* For nicer extraction, we create induction principles
    only when needed *)
 Local Unset Elimination Schemes.
-Local Unset Case Analysis Schemes.
 
 Module Type InfoTyp.
  Parameter t : Set.
@@ -341,7 +340,7 @@ Module Import MX := OrderedTypeFacts X.
 Scheme tree_ind := Induction for tree Sort Prop.
 Scheme bst_ind := Induction for bst Sort Prop.
 
-Local Hint Resolve MX.eq_refl MX.eq_trans MX.lt_trans @ok.
+Local Hint Resolve MX.eq_refl MX.eq_trans MX.lt_trans ok.
 Local Hint Immediate MX.eq_sym.
 Local Hint Unfold In lt_tree gt_tree.
 Local Hint Constructors InT bst.
@@ -378,7 +377,7 @@ Ltac invtree f :=
 
 Ltac inv := inv_ok; invtree InT.
 
-Ltac intuition_in := repeat progress (intuition; inv).
+Ltac intuition_in := repeat (intuition; inv).
 
 (** Helper tactic concerning order of elements. *)
 
@@ -963,12 +962,15 @@ Proof. firstorder. Qed.
 Lemma eq_Leq : forall s s', eq s s' <-> L.eq (elements s) (elements s').
 Proof.
  unfold eq, Equal, L.eq; intros.
- setoid_rewrite elements_spec1; firstorder.
+ setoid_rewrite elements_spec1.
+ firstorder. 
 Qed.
 
 Definition lt (s1 s2 : tree) : Prop :=
  exists s1' s2', Ok s1' /\ Ok s2' /\ eq s1 s1' /\ eq s2 s2'
    /\ L.lt (elements s1') (elements s2').
+
+Declare Equivalent Keys L.eq equivlistA.
 
 Instance lt_strorder : StrictOrder lt.
 Proof.
@@ -1017,7 +1019,7 @@ Lemma flatten_e_elements :
  forall l x r c e,
  elements l ++ flatten_e (More x r e) = elements (Node c l x r) ++ flatten_e e.
 Proof.
- intros; simpl. now rewrite elements_node, app_ass.
+ intros. now rewrite elements_node, app_ass.
 Qed.
 
 Lemma cons_1 : forall s e,
@@ -1051,7 +1053,7 @@ Lemma compare_cont_Cmp : forall s1 cont e2 l,
  (forall e, Cmp (cont e) l (flatten_e e)) ->
  Cmp (compare_cont s1 cont e2) (elements s1 ++ l) (flatten_e e2).
 Proof.
- induction s1 as [|c1 l1 Hl1 x1 r1 Hr1]; simpl; intros; auto.
+ induction s1 as [|c1 l1 Hl1 x1 r1 Hr1]; intros; auto.
  rewrite elements_node, app_ass; simpl.
  apply Hl1; auto. clear e2. intros [|x2 r2 e2].
  simpl; auto.
@@ -1063,9 +1065,9 @@ Lemma compare_Cmp : forall s1 s2,
  Cmp (compare s1 s2) (elements s1) (elements s2).
 Proof.
  intros; unfold compare.
- rewrite (app_nil_end (elements s1)).
+ rewrite <- (app_nil_r (elements s1)).
  replace (elements s2) with (flatten_e (cons s2 End)) by
-  (rewrite cons_1; simpl; rewrite <- app_nil_end; auto).
+  (rewrite cons_1; simpl; rewrite app_nil_r; auto).
  apply compare_cont_Cmp; auto.
  intros.
  apply compare_end_Cmp; auto.
@@ -1129,14 +1131,14 @@ Proof.
 Qed.
 
 Lemma maxdepth_log_cardinal s : s <> Leaf ->
- log2 (cardinal s) < maxdepth s.
+ Nat.log2 (cardinal s) < maxdepth s.
 Proof.
  intros H.
  apply Nat.log2_lt_pow2. destruct s; simpl; intuition.
  apply maxdepth_cardinal.
 Qed.
 
-Lemma mindepth_log_cardinal s : mindepth s <= log2 (S (cardinal s)).
+Lemma mindepth_log_cardinal s : mindepth s <= Nat.log2 (S (cardinal s)).
 Proof.
  apply Nat.log2_le_pow2. auto with arith.
  apply mindepth_cardinal.

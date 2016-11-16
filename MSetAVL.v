@@ -31,14 +31,13 @@
     code after extraction.
 *)
 
-Require Import MSetInterface MSetGenTree ZArith Int.
+Require Import MSetInterface MSetGenTree BinInt Int.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
 (* for nicer extraction, we create inductive principles
    only when needed *)
 Local Unset Elimination Schemes.
-Local Unset Case Analysis Schemes.
 
 (** * Ops : the pure functions *)
 
@@ -84,11 +83,11 @@ Definition assert_false := create.
 Definition bal l x r :=
   let hl := height l in
   let hr := height r in
-  if gt_le_dec hl (hr+2) then
+  if (hr+2) <? hl then
     match l with
      | Leaf => assert_false l x r
      | Node _ ll lx lr =>
-       if ge_lt_dec (height ll) (height lr) then
+       if (height lr) <=? (height ll) then
          create ll lx (create lr x r)
        else
          match lr with
@@ -98,11 +97,11 @@ Definition bal l x r :=
          end
     end
   else
-    if gt_le_dec hr (hl+2) then
+    if (hl+2) <? hr then
       match r with
        | Leaf => assert_false l x r
        | Node _ rl rx rr =>
-         if ge_lt_dec (height rr) (height rl) then
+         if (height rl) <=? (height rr) then
             create (create l x rl) rx rr
          else
            match rl with
@@ -139,8 +138,8 @@ Fixpoint join l : elt -> t -> t :=
        fix join_aux (r:t) : t := match r with
           | Leaf => add x l
           | Node rh rl rx rr =>
-               if gt_le_dec lh (rh+2) then bal ll lx (join lr x r)
-               else if gt_le_dec rh (lh+2) then bal (join_aux rl) rx rr
+               if (rh+2) <? lh then bal ll lx (join lr x r)
+               else if (lh+2) <? rh then bal (join_aux rl) rx rr
                else create l x r
           end
   end.
@@ -307,13 +306,13 @@ Include MSetGenTree.Props X I.
 Local Hint Immediate MX.eq_sym.
 Local Hint Unfold In lt_tree gt_tree Ok.
 Local Hint Constructors InT bst.
-Local Hint Resolve MX.eq_refl MX.eq_trans MX.lt_trans @ok.
+Local Hint Resolve MX.eq_refl MX.eq_trans MX.lt_trans ok.
 Local Hint Resolve lt_leaf gt_leaf lt_tree_node gt_tree_node.
 Local Hint Resolve lt_tree_not_in lt_tree_trans gt_tree_not_in gt_tree_trans.
 Local Hint Resolve elements_spec2.
 
 (* Sometimes functional induction will expose too much of
-   a tree structure. The following tactic allows to factor back
+   a tree structure. The following tactic allows factoring back
    a Node whose internal parts occurs nowhere else. *)
 
 (* TODO: why Ltac instead of Tactic Notation don't work ? why clear ? *)
@@ -418,14 +417,15 @@ Local Open Scope Int_scope.
     Let's do its job by hand: *)
 
 Ltac join_tac :=
+ let l := fresh "l" in
  intro l; induction l as [| lh ll _ lx lr Hlr];
    [ | intros x r; induction r as [| rh rl Hrl rx rr _]; unfold join;
-     [ | destruct (gt_le_dec lh (rh+2)) as [GT|LE];
+     [ | destruct ((rh+2) <? lh) eqn:LT;
        [ match goal with |- context b [ bal ?a ?b ?c] =>
            replace (bal a b c)
            with (bal ll lx (join lr x (Node rh rl rx rr))); [ | auto]
          end
-       | destruct (gt_le_dec rh (lh+2)) as [GT'|LE'];
+       | destruct ((lh+2) <? rh) eqn:LT';
          [ match goal with |- context b [ bal ?a ?b ?c] =>
              replace (bal a b c)
              with (bal (join (Node lh ll lx lr) x rl) rx rr); [ | auto]

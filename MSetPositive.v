@@ -16,89 +16,18 @@
    Sandrine Blazy (used for building certified compilers).
 *)
 
-Require Import Bool BinPos Orders MSetInterface.
+Require Import Bool BinPos Orders OrdersEx MSetInterface.
 
 Set Implicit Arguments.
-
 Local Open Scope lazy_bool_scope.
 Local Open Scope positive_scope.
-
 Local Unset Elimination Schemes.
-Local Unset Case Analysis Schemes.
-Local Unset Boolean Equality Schemes.
-
-
-(** Even if [positive] can be seen as an ordered type with respect to the
-  usual order (see above), we can also use a lexicographic order over bits
-  (lower bits are considered first). This is more natural when using
-  [positive] as indexes for sets or maps (see FSetPositive and FMapPositive. *)
-
-Module PositiveOrderedTypeBits <: UsualOrderedType.
-  Definition t:=positive.
-  Include HasUsualEq <+ UsualIsEq.
-  Definition eqb := Pos.eqb.
-  Definition eqb_eq := Pos.eqb_eq.
-  Include HasEqBool2Dec.
-
-  Fixpoint bits_lt (p q:positive) : Prop :=
-   match p, q with
-   | xH, xI _ => True
-   | xH, _ => False
-   | xO p, xO q => bits_lt p q
-   | xO _, _ => True
-   | xI p, xI q => bits_lt p q
-   | xI _, _ => False
-   end.
-
-  Definition lt:=bits_lt.
-
-  Lemma bits_lt_antirefl : forall x : positive, ~ bits_lt x x.
-  Proof.
-   induction x; simpl; auto.
-  Qed.
-
-  Lemma bits_lt_trans :
-    forall x y z : positive, bits_lt x y -> bits_lt y z -> bits_lt x z.
-  Proof.
-   induction x; destruct y,z; simpl; eauto; intuition.
-  Qed.
-
-  Instance lt_compat : Proper (eq==>eq==>iff) lt.
-  Proof.
-   intros x x' Hx y y' Hy. rewrite Hx, Hy; intuition.
-  Qed.
-
-  Instance lt_strorder : StrictOrder lt.
-  Proof.
-   split; [ exact bits_lt_antirefl | exact bits_lt_trans ].
-  Qed.
-
-  Fixpoint compare x y :=
-    match x, y with
-      | x~1, y~1 => compare x y
-      | x~1, _ => Gt
-      | x~0, y~0 => compare x y
-      | x~0, _ => Lt
-      | 1, y~1 => Lt
-      | 1, 1 => Eq
-      | 1, y~0 => Gt
-    end.
-
-  Lemma compare_spec : forall x y, CompSpec eq lt x y (compare x y).
-  Proof.
-   unfold eq, lt.
-   induction x; destruct y; try constructor; simpl; auto.
-    destruct (IHx y); subst; auto.
-    destruct (IHx y); subst; auto.
-  Qed.
-
-End PositiveOrderedTypeBits.
 
 Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
 
   Module E:=PositiveOrderedTypeBits.
 
-  Definition elt := positive.
+  Definition elt := positive : Type.
 
   Inductive tree :=
     | Leaf : tree
@@ -106,9 +35,9 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
 
   Scheme tree_ind := Induction for tree Sort Prop.
 
-  Definition t := tree.
+  Definition t := tree : Type.
 
-  Definition empty := Leaf.
+  Definition empty : t := Leaf.
 
   Fixpoint is_empty (m : t) : bool :=
    match m with
@@ -116,7 +45,7 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
     | Node l b r => negb b &&& is_empty l &&& is_empty r
    end.
 
-  Fixpoint mem (i : positive) (m : t) : bool :=
+  Fixpoint mem (i : positive) (m : t) {struct m} : bool :=
     match m with
     | Leaf => false
     | Node l o r =>
@@ -147,13 +76,13 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
 
   (** helper function to avoid creating empty trees that are not leaves *)
 
-  Definition node l (b: bool) r :=
+  Definition node (l : t) (b: bool) (r : t) : t :=
     if b then Node l b r else
      match l,r with
        | Leaf,Leaf => Leaf
        | _,_ => Node l false r end.
 
-  Fixpoint remove (i : positive) (m : t) : t :=
+  Fixpoint remove (i : positive) (m : t) {struct m} : t :=
     match m with
       | Leaf => Leaf
       | Node l o r =>
@@ -164,7 +93,7 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
         end
     end.
 
-  Fixpoint union (m m': t) :=
+  Fixpoint union (m m': t) : t :=
     match m with
       | Leaf => m'
       | Node l o r =>
@@ -174,7 +103,7 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
         end
     end.
 
-  Fixpoint inter (m m': t) :=
+  Fixpoint inter (m m': t) : t :=
     match m with
       | Leaf => Leaf
       | Node l o r =>
@@ -184,7 +113,7 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
         end
     end.
 
-  Fixpoint diff (m m': t) :=
+  Fixpoint diff (m m': t) : t :=
     match m with
       | Leaf => Leaf
       | Node l o r =>
@@ -216,7 +145,7 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
 
   (** reverses [y] and concatenate it with [x] *)
 
-  Fixpoint rev_append y x :=
+  Fixpoint rev_append (y x : elt) : elt :=
     match y with
       | 1 => x
       | y~1 => rev_append y x~1
@@ -267,14 +196,14 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
       end.
     Definition exists_ m := xexists m 1.
 
-    Fixpoint xfilter (m : t) (i : positive) :=
+    Fixpoint xfilter (m : t) (i : positive) : t :=
       match m with
         | Leaf => Leaf
         | Node l o r => node (xfilter l i~0) (o &&& f (rev i)) (xfilter r i~1)
       end.
     Definition filter m := xfilter m 1.
 
-    Fixpoint xpartition (m : t) (i : positive) :=
+    Fixpoint xpartition (m : t) (i : positive) : t * t :=
       match m with
         | Leaf => (Leaf,Leaf)
         | Node l o r =>
@@ -308,40 +237,34 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
       | Node l true r => S (cardinal l + cardinal r)
     end.
 
-  Definition omap (f: elt -> elt) x :=
-    match x with
-      | None => None
-      | Some i => Some (f i)
-    end.
-
   (** would it be more efficient to use a path like in the above functions ? *)
 
-  Fixpoint choose (m: t) :=
+  Fixpoint choose (m: t) : option elt :=
     match m with
       | Leaf => None
       | Node l o r => if o then Some 1 else
         match choose l with
-          | None => omap xI (choose r)
+          | None => option_map xI (choose r)
           | Some i => Some i~0
         end
     end.
 
-  Fixpoint min_elt (m: t) :=
+  Fixpoint min_elt (m: t) : option elt :=
     match m with
       | Leaf => None
       | Node l o r =>
         match min_elt l with
-          | None => if o then Some 1 else omap xI (min_elt r)
+          | None => if o then Some 1 else option_map xI (min_elt r)
           | Some i => Some i~0
         end
     end.
 
-  Fixpoint max_elt (m: t) :=
+  Fixpoint max_elt (m: t) : option elt :=
     match m with
       | Leaf => None
       | Node l o r =>
         match max_elt r with
-          | None => if o then Some 1 else omap xO (max_elt l)
+          | None => if o then Some 1 else option_map xO (max_elt l)
           | Some i => Some i~1
         end
     end.
@@ -414,10 +337,7 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
     case o; trivial.
     destruct l; trivial.
     destruct r; trivial.
-    symmetry. destruct x.
-      apply mem_Leaf.
-      apply mem_Leaf.
-      reflexivity.
+    destruct x; reflexivity.
   Qed.
   Local Opaque node.
 
@@ -427,7 +347,7 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
   Proof.
     unfold Empty, In.
     induction s as [|l IHl o r IHr]; simpl.
-      setoid_rewrite mem_Leaf. firstorder.
+      firstorder.
       rewrite <- 2andb_lazy_alt, 2andb_true_iff, IHl, IHr. clear IHl IHr.
       destruct o; simpl; split.
         intuition discriminate.
@@ -813,7 +733,7 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
        rewrite <- andb_lazy_alt. apply andb_true_iff.
   Qed.
 
-  Lemma filter_spec: forall s x f, compat_bool E.eq f ->
+  Lemma filter_spec: forall s x f, @compat_bool elt E.eq f ->
     (In x (filter f s) <-> In x s /\ f x = true).
   Proof. intros. apply xfilter_spec. Qed.
 
@@ -824,7 +744,7 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
   Proof.
     unfold For_all, In. intro f.
     induction s as [|l IHl o r IHr]; intros i; simpl.
-     setoid_rewrite mem_Leaf. intuition discriminate.
+    intuition discriminate.
      rewrite <- 2andb_lazy_alt, <- orb_lazy_alt, 2 andb_true_iff.
      rewrite IHl, IHr. clear IHl IHr.
       split.
@@ -838,7 +758,7 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
         apply H. assumption.
   Qed.
 
-  Lemma for_all_spec: forall s f, compat_bool E.eq f ->
+  Lemma for_all_spec: forall s f, @compat_bool elt E.eq f ->
     (for_all f s = true <-> For_all (fun x => f x = true) s).
   Proof. intros. apply xforall_spec. Qed.
 
@@ -849,7 +769,7 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
   Proof.
     unfold Exists, In. intro f.
     induction s as [|l IHl o r IHr]; intros i; simpl.
-     setoid_rewrite mem_Leaf. firstorder.
+     firstorder.
      rewrite <- 2orb_lazy_alt, 2orb_true_iff, <- andb_lazy_alt, andb_true_iff.
      rewrite IHl, IHr. clear IHl IHr.
       split.
@@ -860,7 +780,7 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
        intros [[x|x|] H]; eauto.
   Qed.
 
-  Lemma exists_spec : forall s f, compat_bool E.eq f ->
+  Lemma exists_spec : forall s f, @compat_bool elt E.eq f ->
     (exists_ f s = true <-> Exists (fun x => f x = true) s).
   Proof. intros. apply xexists_spec. Qed.
 
@@ -876,11 +796,11 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
       destruct o; simpl; rewrite IHl, IHr; reflexivity.
   Qed.
 
-  Lemma partition_spec1 : forall s f, compat_bool E.eq f ->
+  Lemma partition_spec1 : forall s f, @compat_bool elt E.eq f ->
       Equal (fst (partition f s)) (filter f s).
   Proof. intros. rewrite partition_filter. reflexivity. Qed.
 
-  Lemma partition_spec2 : forall s f, compat_bool E.eq f ->
+  Lemma partition_spec2 : forall s f, @compat_bool elt E.eq f ->
       Equal (snd (partition f s)) (filter (fun x => negb (f x)) s).
   Proof. intros. rewrite partition_filter. reflexivity. Qed.
 
@@ -897,7 +817,7 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
     induction s as [|l IHl o r IHr]; simpl.
       intros. split; intro H.
         left. assumption.
-        destruct H as [H|[x [Hx Hx']]]. assumption. elim (empty_spec Hx').
+        destruct H as [H|[x [Hx Hx']]]. assumption. discriminate.
 
       intros j acc y. case o.
         rewrite IHl. rewrite InA_cons. rewrite IHr. clear IHl IHr. split.
@@ -975,7 +895,6 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
   Lemma elements_spec2w: forall s, NoDupA E.eq (elements s).
   Proof.
     intro. apply SortA_NoDupA with E.lt; auto with *.
-    apply E.eq_equiv.
     apply elements_spec2.
   Qed.
 
@@ -989,10 +908,10 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
       destruct o.
         intros x H. injection H; intros; subst. reflexivity.
         revert IHl. case choose.
-          intros p Hp x H. injection H; intros; subst; clear H. apply Hp.
+          intros p Hp x H. injection H as <-. apply Hp.
            reflexivity.
           intros _ x. revert IHr. case choose.
-            intros p Hp H. injection H; intros; subst; clear H. apply Hp.
+            intros p Hp H. injection H as <-. apply Hp.
             reflexivity.
             intros. discriminate.
   Qed.
@@ -1049,11 +968,11 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
    induction s as [| l IHl o r IHr]; simpl.
      intros. discriminate.
      intros x. destruct (min_elt l); intros.
-       injection H. intros <-. apply IHl. reflexivity.
+       injection H as <-. apply IHl. reflexivity.
        destruct o; simpl.
-         injection H. intros <-. reflexivity.
+         injection H as <-. reflexivity.
          destruct (min_elt r); simpl in *.
-           injection H. intros <-. apply IHr. reflexivity.
+           injection H as <-. apply IHr. reflexivity.
            discriminate.
   Qed.
 
@@ -1077,17 +996,17 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
     induction s as [|l IHl o r IHr]; intros x y H H'.
       discriminate.
       simpl in H. case_eq (min_elt l).
-        intros p Hp. rewrite Hp in H. injection H; intros <-.
+        intros p Hp. rewrite Hp in H. injection H as <-.
         destruct y as [z|z|]; simpl; intro; trivial. apply (IHl p z); trivial.
         intro Hp; rewrite Hp in H. apply min_elt_spec3 in Hp.
         destruct o.
-          injection H. intros <- Hl. clear H.
+          injection H as <-. intros Hl.
           destruct y as [z|z|]; simpl; trivial. elim (Hp _ H').
 
           destruct (min_elt r).
-            injection H. intros <-. clear H.
+            injection H as <-.
             destruct y as [z|z|].
-              apply (IHr p z); trivial.
+              apply (IHr e z); trivial.
               elim (Hp _ H').
               discriminate.
             discriminate.
@@ -1102,11 +1021,11 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
    induction s as [| l IHl o r IHr]; simpl.
      intros. discriminate.
      intros x. destruct (max_elt r); intros.
-       injection H. intros <-. apply IHr. reflexivity.
+       injection H as <-. apply IHr. reflexivity.
        destruct o; simpl.
-         injection H. intros <-. reflexivity.
+         injection H as <-. reflexivity.
          destruct (max_elt l); simpl in *.
-           injection H. intros <-. apply IHl. reflexivity.
+           injection H as <-. apply IHl. reflexivity.
            discriminate.
   Qed.
 
@@ -1130,18 +1049,18 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
     induction s as [|l IHl o r IHr]; intros x y H H'.
       discriminate.
       simpl in H. case_eq (max_elt r).
-        intros p Hp. rewrite Hp in H. injection H; intros <-.
+        intros p Hp. rewrite Hp in H. injection H as <-.
         destruct y as [z|z|]; simpl; intro; trivial. apply (IHr p z); trivial.
         intro Hp; rewrite Hp in H. apply max_elt_spec3 in Hp.
         destruct o.
-          injection H. intros <- Hl. clear H.
+          injection H as <-. intros Hl.
           destruct y as [z|z|]; simpl; trivial. elim (Hp _ H').
 
           destruct (max_elt l).
-            injection H. intros <-. clear H.
+            injection H as <-.
             destruct y as [z|z|].
               elim (Hp _ H').
-              apply (IHl p z); trivial.
+              apply (IHl e z); trivial.
               discriminate.
             discriminate.
   Qed.
