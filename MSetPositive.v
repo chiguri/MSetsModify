@@ -94,7 +94,7 @@ Module PositiveOrderedTypeBits <: UsualOrderedType.
 
 End PositiveOrderedTypeBits.
 
-Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
+Module PositiveSet <: Sets with Module E:=PositiveOrderedTypeBits.
 
   Module E:=PositiveOrderedTypeBits.
 
@@ -817,6 +817,9 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
     (In x (filter f s) <-> In x s /\ f x = true).
   Proof. intros. apply xfilter_spec. Qed.
 
+  Lemma filter_spec': forall s x f, In x (filter f s) -> In x s.
+  Proof. intros s x f. apply xfilter_spec. Qed.
+
   (** Specification of [for_all] *)
 
   Lemma xforall_spec: forall f s i,
@@ -880,9 +883,29 @@ Module PositiveSet <: S with Module E:=PositiveOrderedTypeBits.
       Equal (fst (partition f s)) (filter f s).
   Proof. intros. rewrite partition_filter. reflexivity. Qed.
 
+  Lemma partition_spec1' : forall s x f,
+      In x (fst (partition f s)) -> In x s.
+  Proof.
+    intros.
+    rewrite partition_filter in H.
+    simpl in H.
+    eapply filter_spec'.
+    exact H.
+  Qed.
+
   Lemma partition_spec2 : forall s f, compat_bool E.eq f ->
       Equal (snd (partition f s)) (filter (fun x => negb (f x)) s).
   Proof. intros. rewrite partition_filter. reflexivity. Qed.
+
+  Lemma partition_spec2' : forall s x f,
+      In x (snd (partition f s)) -> In x s.
+  Proof.
+    intros.
+    rewrite partition_filter in H.
+    simpl in H.
+    eapply filter_spec'.
+    exact H.
+  Qed.
 
 
   (** Specification of [elements] *)

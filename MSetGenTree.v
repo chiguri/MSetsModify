@@ -546,9 +546,9 @@ Qed.
 
 (** ** Emptyness test *)
 
-Lemma is_empty_spec : forall s, is_empty s = true <-> Empty s.
+Lemma is_empty_spec : forall s `{Ok s}, is_empty s = true <-> Empty s.
 Proof.
- destruct s as [|c r x l]; simpl; auto.
+  intros s _; destruct s as [|c r x l]; simpl; auto.
  - split; auto. intros _ x H. inv.
  - split; auto. try discriminate. intro H; elim (H x); auto.
 Qed.
@@ -567,9 +567,9 @@ Qed.
 Functional Scheme min_elt_ind := Induction for min_elt Sort Prop.
 Functional Scheme max_elt_ind := Induction for max_elt Sort Prop.
 
-Lemma min_elt_spec1 s x : min_elt s = Some x -> InT x s.
+Lemma min_elt_spec1 s x `{H : Ok s} : min_elt s = Some x -> InT x s.
 Proof.
- functional induction (min_elt s); auto; inversion 1; auto.
+ clear H; functional induction (min_elt s); auto; inversion 1; auto.
 Qed.
 
 Lemma min_elt_spec2 s x y `{Ok s} :
@@ -590,8 +590,9 @@ Proof.
      order.
 Qed.
 
-Lemma min_elt_spec3 s : min_elt s = None -> Empty s.
+Lemma min_elt_spec3 s `{H : Ok s} : min_elt s = None -> Empty s.
 Proof.
+ clear H.
  functional induction (min_elt s).
  red; red; inversion 2.
  inversion 1.
@@ -599,9 +600,9 @@ Proof.
  destruct (IHo H0 _x3); auto.
 Qed.
 
-Lemma max_elt_spec1 s x : max_elt s = Some x -> InT x s.
+Lemma max_elt_spec1 s x `{H : Ok s} : max_elt s = Some x -> InT x s.
 Proof.
- functional induction (max_elt s); auto; inversion 1; auto.
+ clear H; functional induction (max_elt s); auto; inversion 1; auto.
 Qed.
 
 Lemma max_elt_spec2 s x y `{Ok s} :
@@ -622,8 +623,9 @@ Proof.
      order.
 Qed.
 
-Lemma max_elt_spec3 s : max_elt s = None -> Empty s.
+Lemma max_elt_spec3 s `{H : Ok s} : max_elt s = None -> Empty s.
 Proof.
+ clear H.
  functional induction (max_elt s).
  red; red; inversion 2.
  inversion 1.
@@ -631,12 +633,12 @@ Proof.
  destruct (IHo H0 _x3); auto.
 Qed.
 
-Lemma choose_spec1 : forall s x, choose s = Some x -> InT x s.
+Lemma choose_spec1 : forall s x `{Ok s}, choose s = Some x -> InT x s.
 Proof.
  exact min_elt_spec1.
 Qed.
 
-Lemma choose_spec2 : forall s, choose s = None -> Empty s.
+Lemma choose_spec2 : forall s `{Ok s}, choose s = None -> Empty s.
 Proof.
  exact min_elt_spec3.
 Qed.
@@ -669,11 +671,14 @@ Proof.
  intuition; inversion_clear H3; intuition.
 Qed.
 
-Lemma elements_spec1 : forall s x, InA X.eq x (elements s) <-> InT x s.
+Lemma elements_spec1_w : forall s x, InA X.eq x (elements s) <-> InT x s.
 Proof.
- intros; generalize (elements_spec1' s nil x); intuition.
+ intros s x; generalize (elements_spec1' s nil x); intuition.
  inversion_clear H0.
 Qed.
+
+Lemma elements_spec1 : forall s x `{Ok s}, InA X.eq x (elements s) <-> InT x s.
+Proof. intros s x _. exact (elements_spec1_w _ _). Qed.
 
 Lemma elements_spec2' : forall s acc `{Ok s}, sort X.lt acc ->
  (forall x y : elt, InA X.eq x acc -> InT y s -> X.lt y x) ->
@@ -795,29 +800,29 @@ Proof.
    inversion_clear H2.
    constructor; ok.
    * intros y Hy. apply H3.
-     + now rewrite elements_spec1.
+     + now rewrite elements_spec1_w.
      + rewrite InA_cons. now left.
    * intros y Hy.
      apply SortA_InfA_InA with (eqA:=X.eq)(l:=elements r); auto_tc.
-     now rewrite elements_spec1.
+     now rewrite elements_spec1_w.
 Qed.
 
 (** ** [for_all] and [exists] *)
 
-Lemma for_all_spec s f : Proper (X.eq==>eq) f ->
+Lemma for_all_spec s f {H : Ok s} : Proper (X.eq==>eq) f ->
  (for_all f s = true <-> For_all (fun x => f x = true) s).
 Proof.
- intros Hf; unfold For_all.
+ clear H; intros Hf; unfold For_all.
  induction s as [|i l IHl x r IHr]; simpl; auto.
  - split; intros; inv; auto.
  - rewrite <- !andb_lazy_alt, !andb_true_iff, IHl, IHr. clear IHl IHr.
    intuition_in. eauto.
 Qed.
 
-Lemma exists_spec s f : Proper (X.eq==>eq) f ->
+Lemma exists_spec s f `{H : Ok s} : Proper (X.eq==>eq) f ->
  (exists_ f s = true <-> Exists (fun x => f x = true) s).
 Proof.
- intros Hf; unfold Exists.
+ clear H; intros Hf; unfold Exists.
  induction s as [|i l IHl x r IHr]; simpl; auto.
  - split.
    * discriminate.
@@ -842,7 +847,7 @@ Proof.
  apply IHr.
 Qed.
 
-Lemma fold_spec (s:tree) {A} (i : A) (f : elt -> A -> A) :
+Lemma fold_spec_w (s:tree) {A} (i : A) (f : elt -> A -> A) :
  fold f s i = fold_left (flip f) (elements s) i.
 Proof.
  revert i. unfold elements.
@@ -851,6 +856,10 @@ Proof.
  rewrite IHr.
  simpl; auto.
 Qed.
+
+Lemma fold_spec (s:tree) `{H : Ok s} {A} (i : A) (f : elt -> A -> A) :
+ fold f s i = fold_left (flip f) (elements s) i.
+Proof. exact (fold_spec_w _ _ _). Qed.
 
 
 (** ** Subset *)
@@ -963,7 +972,7 @@ Proof. firstorder. Qed.
 Lemma eq_Leq : forall s s', eq s s' <-> L.eq (elements s) (elements s').
 Proof.
  unfold eq, Equal, L.eq; intros.
- setoid_rewrite elements_spec1; firstorder.
+ setoid_rewrite elements_spec1_w; firstorder.
 Qed.
 
 Definition lt (s1 s2 : tree) : Prop :=

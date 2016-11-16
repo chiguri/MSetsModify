@@ -738,7 +738,7 @@ Qed.
 
 (** * Filter *)
 
-Lemma filter_spec : forall s x f,
+Lemma filter_spec_w : forall s x f,
  Proper (X.eq==>Logic.eq) f ->
  (InT x (filter f s) <-> InT x s /\ f x = true).
 Proof.
@@ -751,7 +751,12 @@ Proof.
      assert (f x = f x0) by auto. congruence.
 Qed.
 
-Lemma filter_weak_spec : forall s x f,
+Lemma filter_spec : forall s x f `{Ok s},
+ Proper (X.eq==>Logic.eq) f ->
+ (InT x (filter f s) <-> InT x s /\ f x = true).
+Proof. intros s x f _. exact (@filter_spec_w _ _ _). Qed.
+
+Lemma filter_spec'_w : forall s x f,
  InT x (filter f s) -> InT x s.
 Proof.
  induction s as [ |h l Hl x0 r Hr]; intros x f; simpl.
@@ -761,20 +766,24 @@ Proof.
    * rewrite concat_spec; intuition_in; eauto.
 Qed.
 
+Lemma filter_spec' : forall s x f `{Ok s},
+ InT x (filter f s) -> InT x s.
+Proof. intros s x f _. exact (@filter_spec'_w _ _ _). Qed.
+
 Instance filter_ok s f `(H : Ok s) : Ok (filter f s).
 Proof.
  induction H as [ | h x l r Hl Hfl Hr Hfr Hlt Hgt ].
  - constructor.
  - simpl.
-   assert (lt_tree x (filter f l)) by (eauto using filter_weak_spec).
-   assert (gt_tree x (filter f r)) by (eauto using filter_weak_spec).
+   assert (lt_tree x (filter f l)) by (eauto using filter_spec'_w).
+   assert (gt_tree x (filter f r)) by (eauto using filter_spec'_w).
    destruct (f x); eauto using concat_ok, join_ok.
 Qed.
 
 
 (** * Partition *)
 
-Lemma partition_spec1' s f : (partition f s)#1 = filter f s.
+Lemma partition_spec1w s f : (partition f s)#1 = filter f s.
 Proof.
  induction s as [ | h l Hl x r Hr ]; simpl.
  - trivial.
@@ -782,7 +791,7 @@ Proof.
    now destruct (partition f l), (partition f r), (f x).
 Qed.
 
-Lemma partition_spec2' s f :
+Lemma partition_spec2w s f :
  (partition f s)#2 = filter (fun x => negb (f x)) s.
 Proof.
  induction s as [ | h l Hl x r Hr ]; simpl.
@@ -791,21 +800,29 @@ Proof.
    now destruct (partition f l), (partition f r), (f x).
 Qed.
 
-Lemma partition_spec1 s f :
+Lemma partition_spec1 s f `{Ok s} :
  Proper (X.eq==>Logic.eq) f ->
  Equal (partition f s)#1 (filter f s).
-Proof. now rewrite partition_spec1'. Qed.
+Proof. now rewrite partition_spec1w. Qed.
 
-Lemma partition_spec2 s f :
+Lemma partition_spec2 s f `{Ok s} :
  Proper (X.eq==>Logic.eq) f ->
  Equal (partition f s)#2 (filter (fun x => negb (f x)) s).
-Proof. now rewrite partition_spec2'. Qed.
+Proof. now rewrite partition_spec2w. Qed.
+
+Lemma partition_spec1' s x f `{Ok s} :
+ In x (partition f s)#1 -> In x s.
+Proof. rewrite partition_spec1w. exact (@filter_spec'_w _ _ _). Qed.
+
+Lemma partition_spec2' s x f `{Ok s} :
+ In x (partition f s)#2 -> In x s.
+Proof. rewrite partition_spec2w. exact (@filter_spec'_w _ _ _). Qed.
 
 Instance partition_ok1 s f `(Ok s) : Ok (partition f s)#1.
-Proof. rewrite partition_spec1'; now apply filter_ok. Qed.
+Proof. rewrite partition_spec1w; now apply filter_ok. Qed.
 
 Instance partition_ok2 s f `(Ok s) : Ok (partition f s)#2.
-Proof. rewrite partition_spec2'; now apply filter_ok. Qed.
+Proof. rewrite partition_spec2w; now apply filter_ok. Qed.
 
 End MakeRaw.
 
@@ -820,12 +837,12 @@ End MakeRaw.
    see [MSetFullAVL] if you need more than just the MSet interface.
 *)
 
-Module IntMake (I:Int)(X: OrderedType) <: S with Module E := X.
+Module IntMake (I:Int)(X: OrderedType) <: Sets with Module E := X.
  Module Raw := MakeRaw I X.
  Include Raw2Sets X Raw.
 End IntMake.
 
 (* For concrete use inside Coq, we propose an instantiation of [Int] by [Z]. *)
 
-Module Make (X: OrderedType) <: S with Module E := X
+Module Make (X: OrderedType) <: Sets with Module E := X
  :=IntMake(Z_as_Int)(X).
