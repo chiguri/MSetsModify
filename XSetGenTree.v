@@ -1,33 +1,13 @@
-(***********************************************************************)
-(*  v      *   The Coq Proof Assistant  /  The Coq Development Team    *)
-(* <O___,, *        INRIA-Rocquencourt  &  LRI-CNRS-Orsay              *)
-(*   \VV/  *************************************************************)
-(*    //   *      This file is distributed under the terms of the      *)
-(*         *       GNU Lesser General Public License Version 2.1       *)
-(***********************************************************************)
+(* -*- coding: utf-8 -*- *)
+(*      This file is distributed under the terms of the      *)
+(*       GNU Lesser General Public License Version 2.1       *)
+(* Author: Sosuke Moriguchi *)
+(* Extended implementation from MSetGenTree *)
 
-(** * MSetGenTree : sets via generic trees
+(** * XSetGenTree : sets via generic trees *)
+(** This file is extension of [MSetGenTree] to implement (a part of) extensions in XSetInterface. *)
 
-    This module factorizes common parts in implementations
-    of finite sets as AVL trees and as Red-Black trees. The nodes
-    of the trees defined here include an generic information
-    parameter, that will be the heigth in AVL trees and the color
-    in Red-Black trees. Without more details here about these
-    information parameters, trees here are not known to be
-    well-balanced, but simply binary-search-trees.
-
-    The operations we could define and prove correct here are the
-    one that do not build non-empty trees, but only analyze them :
-
-     - empty is_empty
-     - mem
-     - compare equal subset
-     - fold cardinal elements
-     - for_all exists_
-     - min_elt max_elt choose
-*)
-
-Require Import Orders OrdersFacts MSetInterface NPeano.
+Require Import Orders OrdersFacts XSetInterface NPeano.
 Local Open Scope list_scope.
 Local Open Scope lazy_bool_scope.
 

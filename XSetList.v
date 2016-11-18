@@ -1,25 +1,18 @@
-(***********************************************************************)
-(*  v      *   The Coq Proof Assistant  /  The Coq Development Team    *)
-(* <O___,, *        INRIA-Rocquencourt  &  LRI-CNRS-Orsay              *)
-(*   \VV/  *************************************************************)
-(*    //   *      This file is distributed under the terms of the      *)
-(*         *       GNU Lesser General Public License Version 2.1       *)
-(***********************************************************************)
+(* -*- coding: utf-8 -*- *)
+(*      This file is distributed under the terms of the      *)
+(*       GNU Lesser General Public License Version 2.1       *)
+(* Author: Sosuke Moriguchi *)
+(* Extended implementation from MSetList *)
 
 (** * Finite sets library *)
 
-(** This file proposes an implementation of the non-dependant
-    interface [MSetInterface.S] using strictly ordered list. *)
+(** This file is extension of [MSetList] to implement extensions in XSetInterface. *)
 
-Require Export MSetInterface OrdersFacts OrdersLists.
+Require Export XSetInterface OrdersFacts OrdersLists.
 Set Implicit Arguments.
 Unset Strict Implicit.
 
-(** * Functions over lists
-
-   First, we provide sets as lists which are not necessarily sorted.
-   The specs are proved under the additional condition of being sorted.
-   And the functions returning sets are proved to preserve this invariant. *)
+(** * Functions over lists *)
 
 Module Ops (X:OrderedType) <: WOps X.
 

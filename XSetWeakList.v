@@ -1,25 +1,18 @@
-(***********************************************************************)
-(*  v      *   The Coq Proof Assistant  /  The Coq Development Team    *)
-(* <O___,, *        INRIA-Rocquencourt  &  LRI-CNRS-Orsay              *)
-(*   \VV/  *************************************************************)
-(*    //   *      This file is distributed under the terms of the      *)
-(*         *       GNU Lesser General Public License Version 2.1       *)
-(***********************************************************************)
+(* -*- coding: utf-8 -*- *)
+(*      This file is distributed under the terms of the      *)
+(*       GNU Lesser General Public License Version 2.1       *)
+(* Author: Sosuke Moriguchi *)
+(* Extended implementation from MSetWeakList *)
 
 (** * Finite sets library *)
 
-(** This file proposes an implementation of the non-dependant
-    interface [MSetWeakInterface.S] using lists without redundancy. *)
+(** This file is extension of [MSetWeakList] to implement extensions in XSetInterface. *)
 
-Require Import MSetInterface.
+Require Import XSetInterface.
 Set Implicit Arguments.
 Unset Strict Implicit.
 
-(** * Functions over lists
-
-   First, we provide sets as lists which are (morally) without redundancy.
-   The specs are proved under the additional condition of no redundancy.
-   And the functions returning sets are proved to preserve this invariant. *)
+(** * Functions over lists *)
 
 
 (** ** The set operations. *)

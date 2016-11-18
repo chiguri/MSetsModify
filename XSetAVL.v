@@ -1,58 +1,29 @@
 (* -*- coding: utf-8 -*- *)
-(***********************************************************************)
-(*  v      *   The Coq Proof Assistant  /  The Coq Development Team    *)
-(* <O___,, *        INRIA-Rocquencourt  &  LRI-CNRS-Orsay              *)
-(*   \VV/  *************************************************************)
-(*    //   *      This file is distributed under the terms of the      *)
-(*         *       GNU Lesser General Public License Version 2.1       *)
-(***********************************************************************)
+(*      This file is distributed under the terms of the      *)
+(*       GNU Lesser General Public License Version 2.1       *)
+(* Author: Sosuke Moriguchi *)
+(* Extended implementation from MSetAVL *)
 
-(** * MSetAVL : Implementation of MSetInterface via AVL trees *)
+(** * XSetAVL : Implementation of XSetInterface via AVL trees *)
 
-(** This module implements finite sets using AVL trees.
-    It follows the implementation from Ocaml's standard library,
+(** This file is extension of [MSetAVL] to implement extensions in XSetInterface. *)
 
-    All operations given here expect and produce well-balanced trees
-    (in the ocaml sense: heights of subtrees shouldn't differ by more
-    than 2), and hence has low complexities (e.g. add is logarithmic
-    in the size of the set). But proving these balancing preservations
-    is in fact not necessary for ensuring correct operational behavior
-    and hence fulfilling the MSet interface. As a consequence,
-    balancing results are not part of this file anymore, they can
-    now be found in [MSetFullAVL].
-
-    Four operations ([union], [subset], [compare] and [equal]) have
-    been slightly adapted in order to have only structural recursive
-    calls. The precise ocaml versions of these operations have also
-    been formalized (thanks to Function+measure), see [ocaml_union],
-    [ocaml_subset], [ocaml_compare] and [ocaml_equal] in
-    [MSetFullAVL]. The structural variants compute faster in Coq,
-    whereas the other variants produce nicer and/or (slightly) faster
-    code after extraction.
-*)
-
-Require Import MSetInterface MSetGenTree ZArith Int.
+Require Import XSetInterface XSetGenTree ZArith Int.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
-(* for nicer extraction, we create inductive principles
-   only when needed *)
 Local Unset Elimination Schemes.
 Local Unset Case Analysis Schemes.
 
 (** * Ops : the pure functions *)
 
-Module Ops (Import I:Int)(X:OrderedType) <: MSetInterface.Ops X.
+Module Ops (Import I:Int)(X:OrderedType) <: XSetInterface.Ops X.
 Local Open Scope Int_scope.
 Local Notation int := I.t.
 
 (** ** Generic trees instantiated with integer height *)
 
-(** We reuse a generic definition of trees where the information
-    parameter is a [Int.t]. Functions like mem or fold are also
-    provided by this generic functor. *)
-
-Include MSetGenTree.Ops X I.
+Include XSetGenTree.Ops X I.
 
 Definition t := tree.
 
@@ -244,17 +215,6 @@ end.
 
 (** ** Union *)
 
-(** In ocaml, heights of [s1] and [s2] are compared each time in order
-   to recursively perform the split on the smaller set.
-   Unfortunately, this leads to a non-structural algorithm. The
-   following code is a simplification of the ocaml version: no
-   comparison of heights. It might be slightly slower, but
-   experimentally all the tests I've made in ocaml have shown this
-   potential slowdown to be non-significant. Anyway, the exact code
-   of ocaml has also been formalized thanks to Function+measure, see
-   [ocaml_union] in [MSetFullAVL].
-*)
-
 Fixpoint union s1 s2 :=
  match s1, s2 with
   | Leaf, _ => s2
@@ -300,7 +260,7 @@ Include Ops I X.
 (** Generic definition of binary-search-trees and proofs of
     specifications for generic functions such as mem or fold. *)
 
-Include MSetGenTree.Props X I.
+Include XSetGenTree.Props X I.
 
 (** Automation and dedicated tactics *)
 
@@ -828,14 +788,7 @@ End MakeRaw.
 
 
 
-(** * Encapsulation
-
-   Now, in order to really provide a functor implementing [S], we
-   need to encapsulate everything into a type of binary search trees.
-   They also happen to be well-balanced, but this has no influence
-   on the correctness of operations, so we won't state this here,
-   see [MSetFullAVL] if you need more than just the MSet interface.
-*)
+(** * Encapsulation *)
 
 Module IntMake (I:Int)(X: OrderedType) <: Sets with Module E := X.
  Module Raw := MakeRaw I X.
