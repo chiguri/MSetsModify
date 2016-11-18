@@ -746,7 +746,7 @@ Proof.
  simpl. now rewrite !app_ass.
 Qed.
 
-(** The converse of [elements_spec2], used in MSetRBT *)
+(** The converse of [elements_spec2], used in XSetRBT *)
 
 (* TODO: TO MIGRATE ELSEWHERE... *)
 
@@ -943,7 +943,7 @@ Qed.
 
 (** Relations [eq] and [lt] over trees *)
 
-Module L := MSetInterface.MakeListOrdering X.
+Module L := XSetInterface.MakeListOrdering X.
 
 Definition eq := Equal.
 Instance eq_equiv : Equivalence eq.
