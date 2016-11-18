@@ -1,22 +1,12 @@
-(***********************************************************************)
-(*  v      *   The Coq Proof Assistant  /  The Coq Development Team    *)
-(* <O___,, *        INRIA-Rocquencourt  &  LRI-CNRS-Orsay              *)
-(*   \VV/  *************************************************************)
-(*    //   *      This file is distributed under the terms of the      *)
-(*         *       GNU Lesser General Public License Version 2.1       *)
-(***********************************************************************)
+(* -*- coding: utf-8 -*- *)
+(*      This file is distributed under the terms of the      *)
+(*       GNU Lesser General Public License Version 2.1       *)
+(* Author: Sosuke Moriguchi *)
+(* Extended implementation from MSetPositive *)
 
-(** Efficient implementation of [MSetInterface.S] for positive keys,
-    inspired from the [FMapPositive] module.
+(** This file is extension of [MSetPositive] to implement extensions in XSetInterface. *)
 
-   This module was adapted by Alexandre Ren, Damien Pous, and Thomas
-   Braibant (2010, LIG, CNRS, UMR 5217), from the [FMapPositive]
-   module of Pierre Letouzey and Jean-Christophe Filliâtre, which in
-   turn comes from the [FMap] framework of a work by Xavier Leroy and
-   Sandrine Blazy (used for building certified compilers).
-*)
-
-Require Import Bool BinPos Orders OrdersEx MSetInterface.
+Require Import Bool BinPos Orders OrdersEx XSetInterface.
 
 Set Implicit Arguments.
 Local Open Scope lazy_bool_scope.

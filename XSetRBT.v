@@ -1,36 +1,14 @@
-(***********************************************************************)
-(*  v      *   The Coq Proof Assistant  /  The Coq Development Team    *)
-(* <O___,, *        INRIA-Rocquencourt  &  LRI-CNRS-Orsay              *)
-(*   \VV/  *************************************************************)
-(*    //   *      This file is distributed under the terms of the      *)
-(*         *       GNU Lesser General Public License Version 2.1       *)
-(***********************************************************************)
+(* -*- coding: utf-8 -*- *)
+(*      This file is distributed under the terms of the      *)
+(*       GNU Lesser General Public License Version 2.1       *)
+(* Author: Sosuke Moriguchi *)
+(* Extended implementation from MSetRBT *)
 
-(** * MSetRBT : Implementation of MSetInterface via Red-Black trees *)
+(** * XSetRBT : Implementation of XSetInterface via Red-Black trees *)
 
-(** Initial author: Andrew W. Appel, 2011.
-    Extra modifications by: Pierre Letouzey
+(** This file is extension of [MSetRBT] to implement extensions in XSetInterface. *)
 
-The design decisions behind this implementation are described here:
-
- - Efficient Verified Red-Black Trees, by Andrew W. Appel, September 2011.
-   http://www.cs.princeton.edu/~appel/papers/redblack.pdf
-
-Additional suggested reading:
-
- - Red-Black Trees in a Functional Setting by Chris Okasaki.
-   Journal of Functional Programming, 9(4):471-477, July 1999.
-   http://www.eecs.usma.edu/webs/people/okasaki/jfp99redblack.pdf
-
- - Red-black trees with types, by Stefan Kahrs.
-   Journal of Functional Programming, 11(4), 425-432, 2001.
-
- - Functors for Proofs and Programs, by J.-C. Filliatre and P. Letouzey.
-   ESOP'04: European Symposium on Programming, pp. 370-384, 2004.
-   http://www.lri.fr/~filliatr/ftp/publis/fpp.ps.gz
-*)
-
-Require MSetGenTree.
+Require XSetGenTree.
 Require Import Bool List BinPos Pnat Setoid SetoidList PeanoNat.
 Local Open Scope list_scope.
 
@@ -38,9 +16,9 @@ Local Open Scope list_scope.
    only when needed *)
 Local Unset Elimination Schemes.
 
-(** An extra function not (yet?) in MSetInterface.S *)
+(** An extra function not (yet?) in XSetInterface.Sets *)
 
-Module Type MSetRemoveMin (Import M:MSetInterface.Sets).
+Module Type XSetRemoveMin (Import M:XSetInterface.Sets).
 
  Parameter remove_min : t -> option (elt * t).
 
@@ -50,7 +28,7 @@ Module Type MSetRemoveMin (Import M:MSetInterface.Sets).
 
  Axiom remove_min_spec2 : forall s, remove_min s = None -> Empty s.
 
-End MSetRemoveMin.
+End XSetRemoveMin.
 
 (** The type of color annotation. *)
 
@@ -62,7 +40,7 @@ End Color.
 
 (** * Ops : the pure functions *)
 
-Module Ops (X:Orders.OrderedType) <: MSetInterface.Ops X.
+Module Ops (X:Orders.OrderedType) <: XSetInterface.Ops X.
 
 (** ** Generic trees instantiated with color *)
 
@@ -70,7 +48,7 @@ Module Ops (X:Orders.OrderedType) <: MSetInterface.Ops X.
     parameter is a color. Functions like mem or fold are also
     provided by this generic functor. *)
 
-Include MSetGenTree.Ops X Color.
+Include XSetGenTree.Ops X Color.
 
 Definition t := tree.
 Local Notation Rd := (Node Red).
@@ -437,13 +415,13 @@ End Ops.
 
 (** * MakeRaw : the pure functions and their specifications *)
 
-Module Type MakeRaw (X:Orders.OrderedType) <: MSetInterface.RawSets X.
+Module Type MakeRaw (X:Orders.OrderedType) <: XSetInterface.RawSets X.
 Include Ops X.
 
 (** Generic definition of binary-search-trees and proofs of
     specifications for generic functions such as mem or fold. *)
 
-Include MSetGenTree.Props X Color.
+Include XSetGenTree.Props X Color.
 
 Local Notation Rd := (Node Red).
 Local Notation Bk := (Node Black).
@@ -1938,21 +1916,14 @@ Qed.
 
 End BalanceProps.
 
-(** * Final Encapsulation
+(** * Final Encapsulation *)
 
-   Now, in order to really provide a functor implementing [S], we
-   need to encapsulate everything into a type of binary search trees.
-   They also happen to be well-balanced, but this has no influence
-   on the correctness of operations, so we won't state this here,
-   see [BalanceProps] if you need more than just the MSet interface.
-*)
-
-Module Type MSetInterface_S_Ext := MSetInterface.Sets <+ MSetRemoveMin.
+Module Type XSetInterface_Sets_Ext := XSetInterface.Sets <+ XSetRemoveMin.
 
 Module Make (X: Orders.OrderedType) <:
- MSetInterface_S_Ext with Module E := X.
+ XSetInterface_Sets_Ext with Module E := X.
  Module Raw. Include MakeRaw X. End Raw.
- Include MSetInterface.Raw2Sets X Raw.
+ Include XSetInterface.Raw2Sets X Raw.
 
  Definition opt_ok (x:option (elt * Raw.t)) :=
   match x with Some (_,s) => Raw.Ok s | None => True end.
